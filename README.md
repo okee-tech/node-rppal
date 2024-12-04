@@ -32,17 +32,20 @@ npm install @okee-tech/rppal
 import { Gpio, Mode, Bias } from "@okee-tech/rppal";
 
 const gpio = new Gpio();
-const pIn = gpio.get(2);
+const pOut = gpio.get(2);
+const pIn = gpio.get(3);
+const pPwm = gpio.get(4);
+pOut.mode = Mode.Output;
 pIn.mode = Mode.Input;
 pIn.bias = Bias.PullDown;
+pPwm.mode = Mode.Output;
 
-const pOut = gpio.get(1);
-pOut.mode = Mode.Output;
-
+pPwm.setPwm(10, 0.5);
 for (;;) {
-  pOut.level = !pOut.level;
-  console.log(`pOut.level: ${pOut.level}`);
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  pOut.value = pOut.value ? 0 : 1;
+  console.log("Input value: ", pIn.value);
+
+  await new Promise((resolve) => setTimeout(resolve, 200));
 }
 ```
 
