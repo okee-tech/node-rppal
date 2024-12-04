@@ -235,8 +235,6 @@ jobs:
         shell: bash
       - name: Version and Publish
         run: |
-          yarn version ${{ inputs.version }}
-          npm config set provenance true
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
           npm publish --access public
         env:

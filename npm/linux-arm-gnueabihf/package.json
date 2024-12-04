@@ -11,8 +11,28 @@
   "files": [
     "rppal.linux-arm-gnueabihf.node"
   ],
-  "license": "MIT",
   "engines": {
     "node": ">= 10"
-  }
+  },
+  "packageManager": "yarn@4.5.3",
+  "license": "MIT",
+  "description": "Raspberry Pi peripheral access library for Node.js using `napi-rs` bindings from Rust's `rppal` crate",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/okee-tech/node-rppal"
+  },
+  "keywords": [
+    "okee",
+    "okee-tech",
+    "rppal",
+    "raspberry",
+    "pi",
+    "peripheral",
+    "gpio",
+    "i2c",
+    "pwm",
+    "spi",
+    "uart",
+    "hal"
+  ]
 }
