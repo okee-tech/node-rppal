@@ -1,10 +1,17 @@
 import test from "ava";
 
-import { Bias, Gpio, Mode } from "../index.js";
+import { Gpio, Mode, Bias } from "../index.js";
 
 const gpio = new Gpio();
-const p1 = gpio.get(1);
+const pIn = gpio.get(2);
+pIn.mode = Mode.Input;
+pIn.bias = Bias.PullDown;
 
-p1.bias = Bias.PullDown;
-p1.mode = Mode.Output;
-p1.level = 1;
+const pOut = gpio.get(1);
+pOut.mode = Mode.Output;
+
+for (;;) {
+  pOut.level = !pOut.level;
+  console.log(`pOut.level: ${pOut.level}`);
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+}
