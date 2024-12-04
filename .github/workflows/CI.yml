@@ -92,6 +92,16 @@ jobs:
           name: bindings-${{ matrix.settings.target }}
           path: ${{ env.APP_NAME }}.*.node
           if-no-files-found: error
+      - name: Upload index.js
+        uses: actions/upload-artifact@v4
+        with:
+          name: index-js
+          path: index.js
+      - name: Upload index.d.ts
+        uses: actions/upload-artifact@v4
+        with:
+          name: index-d-ts
+          path: index.d.ts
   # test-linux-x64-gnu-binding:
   #   name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
   #   needs:
@@ -220,6 +230,8 @@ jobs:
           path: artifacts
       - name: Move artifacts
         run: yarn artifacts
+      - name: Move index.js and index.d.ts
+        run: cp artifacts/index-js/index.js . && cp artifacts/index-d-ts/index.d.ts .
       - name: List packages
         run: ls -R ./npm
         shell: bash
