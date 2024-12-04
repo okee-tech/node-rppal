@@ -8,16 +8,6 @@ permissions:
   id-token: write
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version type (patch, minor, major)"
-        required: true
-        default: "patch"
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
 jobs:
   build:
     strategy:
