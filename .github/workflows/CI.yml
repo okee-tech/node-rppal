@@ -95,12 +95,12 @@ jobs:
       - name: Upload index.js
         uses: actions/upload-artifact@v4
         with:
-          name: index-js
+          name: index-js-${{ matrix.settings.target }}
           path: index.js
       - name: Upload index.d.ts
         uses: actions/upload-artifact@v4
         with:
-          name: index-d-ts
+          name: index-d-ts-${{ matrix.settings.target }}
           path: index.d.ts
   # test-linux-x64-gnu-binding:
   #   name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
@@ -231,7 +231,9 @@ jobs:
       - name: Move artifacts
         run: yarn artifacts
       - name: Move index.js and index.d.ts
-        run: cp artifacts/index-js/index.js . && cp artifacts/index-d-ts/index.d.ts .
+        run: |
+          cp artifacts/index-js-aarch64-unknown-linux-gnu/index.js .
+          cp artifacts/index-d-ts-aarch64-unknown-linux-gnu/index.d.ts .
       - name: List packages
         run: ls -R ./npm
         shell: bash
