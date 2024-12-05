@@ -5,12 +5,12 @@ const log = (msg) => {
   if (DEBUG) console.debug(`[RPPAL Mock] ${msg}`);
 };
 
-export const Level = {
+const Level = {
   Low: 0,
   High: 1,
 };
 
-export const Mode = {
+const Mode = {
   Input: 0,
   Output: 1,
   Alt0: 2,
@@ -25,7 +25,7 @@ export const Mode = {
   Null: 11,
 };
 
-export const Bias = {
+const Bias = {
   Off: 0,
   PullDown: 1,
   PullUp: 2,
@@ -98,4 +98,10 @@ class Gpio {
   }
 }
 
-module.exports = { Gpio, Level, Mode, Bias };
+module.exports = {
+  Gpio,
+  Pin,
+  Level,
+  Mode,
+  Bias,
+};
