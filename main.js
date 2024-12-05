@@ -3,7 +3,16 @@ let rppal;
 
 try {
   rppal = require("./index.js");
-} catch {
+} catch (err) {
+  global.__RPPAL_MOCK_WARNED__ ??= false;
+  if (!global.__RPPAL_MOCK_WARNED__) {
+    console.warn("[RPPAL] Failed to load native implementation: ", err);
+    console.warn(
+      "[RPPAL] Using mock implementation - GPIO operations will be simulated"
+    );
+    global.__RPPAL_MOCK_WARNED__ = true;
+  }
+
   rppal = require("./mock/index.js");
 }
 
