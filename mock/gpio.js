@@ -1,4 +1,10 @@
 // mock/gpio.js
+const DEBUG = process.env.RPPAL_MOCK_DEBUG === "1";
+
+const log = (msg) => {
+  if (DEBUG) console.debug(`[RPPAL Mock] ${msg}`);
+};
+
 export const Level = {
   Low: 0,
   High: 1,
@@ -44,7 +50,7 @@ class Pin {
     return this.#value;
   }
   set value(newValue) {
-    console.log(`Mock: Pin ${this.#pin} value → ${newValue}`);
+    log(`Pin ${this.#pin} value → ${newValue}`);
     this.#value = newValue;
   }
 
@@ -52,7 +58,7 @@ class Pin {
     return this.#mode;
   }
   set mode(newMode) {
-    console.log(`Mock: Pin ${this.#pin} mode → ${newMode}`);
+    log(`Pin ${this.#pin} mode → ${newMode}`);
     this.#mode = newMode;
   }
 
@@ -60,19 +66,17 @@ class Pin {
     return this.#bias;
   }
   set bias(newBias) {
-    console.log(`Mock: Pin ${this.#pin} bias → ${newBias}`);
+    log(`Pin ${this.#pin} bias → ${newBias}`);
     this.#bias = newBias;
   }
 
   setPwm(frequency, duty) {
-    console.log(
-      `Mock: Pin ${this.#pin} PWM → freq: ${frequency}, duty: ${duty}`
-    );
+    log(`Pin ${this.#pin} PWM → freq: ${frequency}, duty: ${duty}`);
     this.#pwm = { frequency, duty, enabled: true };
   }
 
   clearPwm() {
-    console.log(`Mock: Pin ${this.#pin} PWM cleared`);
+    log(`Pin ${this.#pin} PWM cleared`);
     this.#pwm = { frequency: 0, duty: 0, enabled: false };
   }
 
@@ -81,8 +85,10 @@ class Pin {
   }
 }
 
-export class Gpio {
+class Gpio {
   #pins = new Map();
+
+  constructor() {}
 
   get(pin) {
     if (!this.#pins.has(pin)) {
@@ -91,3 +97,5 @@ export class Gpio {
     return this.#pins.get(pin);
   }
 }
+
+module.exports = { Gpio, Level, Mode, Bias };

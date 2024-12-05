@@ -1,9 +1,10 @@
+// main.js
 let rppal;
 
 try {
   rppal = require("./index.js");
 } catch {
-  rppal = require("./mock");
+  rppal = require("./mock/index.js");
 }
 
-export default rppal;
+module.exports = rppal;
