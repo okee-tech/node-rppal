@@ -1,10 +1,11 @@
 {
   "name": "@okee-tech/rppal",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "main": "main.js",
   "types": "index.d.ts",
   "files": [
     "main.js",
+    "index.js",
     "index.d.ts",
     "mock"
   ],
