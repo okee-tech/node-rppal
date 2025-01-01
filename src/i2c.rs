@@ -1,10 +1,20 @@
 use napi::bindgen_prelude::*;
 
 use rppal;
+use std::time::Duration;
 use tokio;
+use tokio::sync::Mutex;
 
 #[napi]
-pub struct I2C(rppal::i2c::I2c);
+pub struct I2CInner {
+  i2c: rppal::i2c::I2c,
+  slave_address: Option<u16>,
+  is_10bit_address: bool,
+  timeout: Option<Duration>,
+}
+
+#[napi]
+pub struct I2C(Mutex<I2CInner>);
 
 #[napi]
 pub struct Capabilities(rppal::i2c::Capabilities);
@@ -17,7 +27,16 @@ impl I2C {
       Some(bus) => rppal::i2c::I2c::with_bus(bus),
       None => rppal::i2c::I2c::new(),
     }
-    .map(Self)
+    .map({
+      |i2c| {
+        Self(Mutex::new(I2CInner {
+          i2c: i2c,
+          slave_address: None,
+          is_10bit_address: false,
+          timeout: None,
+        }))
+      }
+    })
     .map_err(|e| {
       Error::new(
         Status::GenericFailure,
@@ -26,10 +45,131 @@ impl I2C {
     })
   }
 
-  #[napi(getter, js_name = "capabilities")]
-  pub fn bus(&self) -> Capabilities {
-    Capabilities(self.0.capabilities())
+  #[napi]
+  pub async fn get_capabilities(&self) -> Capabilities {
+    let inner = self.0.lock().await;
+    Capabilities(inner.i2c.capabilities())
   }
+
+  #[napi]
+  pub async fn get_bus(&self) -> u8 {
+    let inner = self.0.lock().await;
+    inner.i2c.bus()
+  }
+
+  #[napi]
+  pub async fn get_clock_speed(&self) -> Result<u32> {
+    let inner = self.0.lock().await;
+    inner.i2c.clock_speed().map_err(|e| {
+      Error::new(
+        Status::GenericFailure,
+        format!("Failed to get clock speed: {}", e),
+      )
+    })
+  }
+
+  #[napi]
+  pub async fn get_slave_address(&self) -> Option<u16> {
+    let inner = self.0.lock().await;
+    inner.slave_address
+  }
+
+  #[napi]
+  pub async fn set_slave_address(&self, new_value: u16) -> Result<()> {
+    let mut inner = self.0.lock().await;
+    inner.slave_address = Some(new_value);
+    inner.i2c.set_slave_address(new_value).map_err(|e| {
+      Error::new(
+        Status::GenericFailure,
+        format!("Failed to set slave address: {}", e),
+      )
+    })
+  }
+
+  #[napi]
+  pub async fn get_addr_10bit(&self) -> bool {
+    let inner = self.0.lock().await;
+    inner.is_10bit_address
+  }
+
+  #[napi]
+  pub async fn set_addr_10bit(&self, new_value: bool) -> Result<()> {
+    let mut inner: tokio::sync::MutexGuard<'_, I2CInner> = self.0.lock().await;
+    inner.is_10bit_address = new_value;
+    inner.i2c.set_addr_10bit(new_value).map_err(|e| {
+      Error::new(
+        Status::GenericFailure,
+        format!("Failed to set 10-bit address: {}", e),
+      )
+    })
+  }
+
+  #[napi]
+  pub async fn get_timeout_millis(&self) -> Result<Option<u32>> {
+    let inner = self.0.lock().await;
+    let Some(timeout) = inner.timeout else {
+      return Ok(None);
+    };
+
+    let millis = timeout.as_millis().try_into();
+    match millis {
+      Ok(millis) => Ok(Some(millis)),
+      Err(_) => Err(Error::new(
+        Status::GenericFailure,
+        "Failed to convert timeout to milliseconds",
+      )),
+    }
+  }
+
+  #[napi]
+  pub async fn set_timeout_millis(&self, new_value: u32) -> Result<()> {
+    let mut inner = self.0.lock().await;
+    let Ok(millis) = new_value.try_into() else {
+      return Err(Error::new(
+        Status::GenericFailure,
+        "Failed to convert timeout to Duration",
+      ));
+    };
+
+    let duration = Duration::from_millis(millis);
+    inner.timeout = Some(duration);
+
+    inner.i2c.set_timeout(new_value).map_err(|e| {
+      Error::new(
+        Status::GenericFailure,
+        format!("Failed to set timeout: {}", e),
+      )
+    })
+  }
+
+  #[napi]
+  pub async fn read(&self, buffer_size: Option<u32>) -> Result<Vec<u8>> {
+    let buffer_size = buffer_size.unwrap_or(32);
+    let Ok(buffer_size) = buffer_size.try_into() else {
+      return Err(Error::new(
+        Status::GenericFailure,
+        "Failed to convert buffer size to usize",
+      ));
+    };
+
+    let mut buffer = vec![0; buffer_size];
+
+    todo!()
+    // self.i2c.read(&mut buffer).await.map_err(|e| {
+    //   Error::new(
+    //     Status::GenericFailure,
+    //     format!("Failed to read from I2C: {}", e),
+    //   )
+    // })?;
+
+    // Ok(buffer)
+  }
+
+  // #[napi(setter, js_name = "is10BitAddress")]
+  // pub fn set_is_10bit_address(&mut self, is_10bit_address: bool) -> Result<()> {
+  //   self.is_10bit_address = is_10bit_address;
+  //   self.i2c.set_10bit_address(is_10bit_address);
+  // }
 
   // #[napi]
   // pub async fn read(&self, address: u8, len: usize) -> Result<Vec<u8>> {
