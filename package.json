@@ -1,6 +1,6 @@
 {
   "name": "@okee-tech/rppal",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "main": "main.js",
   "types": "index.d.ts",
   "files": [
