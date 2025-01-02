@@ -21,3 +21,4 @@ module.exports.Pin = rppal.Pin;
 module.exports.Level = rppal.Level;
 module.exports.Mode = rppal.Mode;
 module.exports.Bias = rppal.Bias;
+module.exports.I2C = rppal.I2C;
