@@ -15,12 +15,12 @@ npm install @okee-tech/rppal
 
 ## Features
 
-- GPIO (General Purpose Input/Output)
+- GPIO
 - GPIO Software PWM
+- I2C (_no smbus for now_)
 
 <!--
 - PWM (Pulse Width Modulation)
-- I2C (Inter-Integrated Circuit)
 - SPI (Serial Peripheral Interface)
 - UART (Universal Asynchronous Receiver/Transmitter) -->
 

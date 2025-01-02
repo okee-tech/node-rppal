@@ -9,7 +9,6 @@ use tokio::sync::Mutex;
 #[napi]
 pub struct I2CInner {
   i2c: rppal::i2c::I2c,
-  slave_address: Option<u16>,
   is_10bit_address: bool,
   timeout: Option<Duration>,
 }
@@ -32,7 +31,6 @@ impl I2C {
       |i2c| {
         Self(Arc::new(Mutex::new(I2CInner {
           i2c,
-          slave_address: None,
           is_10bit_address: false,
           timeout: None,
         })))
@@ -65,24 +63,6 @@ impl I2C {
       Error::new(
         Status::GenericFailure,
         format!("Failed to get clock speed: {}", e),
-      )
-    })
-  }
-
-  #[napi]
-  pub async fn get_slave_address(&self) -> Option<u16> {
-    let inner = self.0.lock().await;
-    inner.slave_address
-  }
-
-  #[napi]
-  pub async fn set_slave_address(&self, new_value: u16) -> Result<()> {
-    let mut inner = self.0.lock().await;
-    inner.slave_address = Some(new_value);
-    inner.i2c.set_slave_address(new_value).map_err(|e| {
-      Error::new(
-        Status::GenericFailure,
-        format!("Failed to set slave address: {}", e),
       )
     })
   }
@@ -144,21 +124,26 @@ impl I2C {
   }
 
   #[napi]
-  pub async fn read(&self, buffer_size: Option<u32>) -> Result<Vec<u8>> {
-    let buffer_size = buffer_size.unwrap_or(32);
-    let Ok(buffer_size) = buffer_size.try_into() else {
-      return Err(Error::new(
-        Status::GenericFailure,
-        "Failed to convert buffer size to usize",
-      ));
-    };
-
+  pub async fn read(&self, address: u16, buffer_size: Option<u32>) -> Result<Vec<u8>> {
     let i2c_ref = self.0.clone();
     tokio::task::spawn_blocking(move || {
       let mut inner = tokio::runtime::Handle::current().block_on(i2c_ref.lock());
 
+      let buffer_size = buffer_size.unwrap_or(256);
+      let Ok(buffer_size) = buffer_size.try_into() else {
+        return Err(Error::new(
+          Status::GenericFailure,
+          "Failed to convert buffer size to usize",
+        ));
+      };
       let mut buffer = vec![0u8; buffer_size];
 
+      inner.i2c.set_slave_address(address).map_err(|e| {
+        Error::new(
+          Status::GenericFailure,
+          format!("Failed to set slave address: {}", e),
+        )
+      })?;
       match inner.i2c.read(&mut buffer) {
         Ok(bytes_read) => {
           buffer.truncate(bytes_read);
@@ -175,6 +160,161 @@ impl I2C {
       Error::new(
         Status::GenericFailure,
         format!("Failed to await read task: {}", e),
+      )
+    })?
+  }
+
+  #[napi]
+  pub async fn write(&self, address: u16, data: Vec<u8>) -> Result<()> {
+    let i2c_ref = self.0.clone();
+    tokio::task::spawn_blocking(move || {
+      let mut inner = tokio::runtime::Handle::current().block_on(i2c_ref.lock());
+
+      inner.i2c.set_slave_address(address).map_err(|e| {
+        Error::new(
+          Status::GenericFailure,
+          format!("Failed to set slave address: {}", e),
+        )
+      })?;
+      match inner.i2c.write(&data) {
+        Ok(bytes_written) => {
+          if bytes_written != data.len() {
+            return Err(Error::new(
+              Status::GenericFailure,
+              format!(
+                "Failed to write all bytes to I2C, only {} out of {} written",
+                bytes_written,
+                data.len()
+              ),
+            ));
+          }
+          Ok(())
+        }
+        Err(e) => Err(Error::new(
+          Status::GenericFailure,
+          format!("Failed to write to I2C: {}", e),
+        )),
+      }
+    })
+    .await
+    .map_err(|e| {
+      Error::new(
+        Status::GenericFailure,
+        format!("Failed to await write task: {}", e),
+      )
+    })?
+  }
+
+  #[napi]
+  pub async fn write_read(
+    &self,
+    address: u16,
+    write_data: Vec<u8>,
+    read_buffer_size: Option<u32>,
+  ) -> Result<Vec<u8>> {
+    let i2c_ref = self.0.clone();
+    tokio::task::spawn_blocking(move || {
+      let mut inner = tokio::runtime::Handle::current().block_on(i2c_ref.lock());
+
+      let read_buffer_size = read_buffer_size.unwrap_or(256);
+      let Ok(read_buffer_size) = read_buffer_size.try_into() else {
+        return Err(Error::new(
+          Status::GenericFailure,
+          "Failed to convert read buffer size to usize",
+        ));
+      };
+      let mut read_buffer = vec![0u8; read_buffer_size];
+
+      inner.i2c.set_slave_address(address).map_err(|e| {
+        Error::new(
+          Status::GenericFailure,
+          format!("Failed to set slave address: {}", e),
+        )
+      })?;
+      match inner.i2c.write_read(&write_data, &mut read_buffer) {
+        Ok(_) => Ok(read_buffer),
+        Err(e) => Err(Error::new(
+          Status::GenericFailure,
+          format!("Failed to write-read to I2C: {}", e),
+        )),
+      }
+    })
+    .await
+    .map_err(|e| {
+      Error::new(
+        Status::GenericFailure,
+        format!("Failed to await write-read task: {}", e),
+      )
+    })?
+  }
+
+  #[napi]
+  pub async fn block_read(
+    &self,
+    address: u16,
+    command: u8,
+    buffer_size: Option<u32>,
+  ) -> Result<Vec<u8>> {
+    let i2c_ref = self.0.clone();
+    tokio::task::spawn_blocking(move || {
+      let mut inner = tokio::runtime::Handle::current().block_on(i2c_ref.lock());
+
+      let buffer_size = buffer_size.unwrap_or(256);
+      let Ok(buffer_size) = buffer_size.try_into() else {
+        return Err(Error::new(
+          Status::GenericFailure,
+          "Failed to convert buffer size to usize",
+        ));
+      };
+      let mut buffer = vec![0u8; buffer_size];
+
+      inner.i2c.set_slave_address(address).map_err(|e| {
+        Error::new(
+          Status::GenericFailure,
+          format!("Failed to set slave address: {}", e),
+        )
+      })?;
+      match inner.i2c.block_read(command, &mut buffer) {
+        Ok(_) => Ok(buffer),
+        Err(e) => Err(Error::new(
+          Status::GenericFailure,
+          format!("Failed to block-read from I2C: {}", e),
+        )),
+      }
+    })
+    .await
+    .map_err(|e| {
+      Error::new(
+        Status::GenericFailure,
+        format!("Failed to await block-read task: {}", e),
+      )
+    })?
+  }
+
+  #[napi]
+  pub async fn block_write(&self, address: u16, command: u8, data: Vec<u8>) -> Result<()> {
+    let i2c_ref = self.0.clone();
+    tokio::task::spawn_blocking(move || {
+      let mut inner = tokio::runtime::Handle::current().block_on(i2c_ref.lock());
+
+      inner.i2c.set_slave_address(address).map_err(|e| {
+        Error::new(
+          Status::GenericFailure,
+          format!("Failed to set slave address: {}", e),
+        )
+      })?;
+      inner.i2c.block_write(command, &data).map_err(|e| {
+        Error::new(
+          Status::GenericFailure,
+          format!("Failed to block-write to I2C: {}", e),
+        )
+      })
+    })
+    .await
+    .map_err(|e| {
+      Error::new(
+        Status::GenericFailure,
+        format!("Failed to await block-write task: {}", e),
       )
     })?
   }
