@@ -1,6 +1,7 @@
 use napi::bindgen_prelude::*;
 
 use rppal;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio;
 use tokio::sync::Mutex;
@@ -14,7 +15,7 @@ pub struct I2CInner {
 }
 
 #[napi]
-pub struct I2C(Mutex<I2CInner>);
+pub struct I2C(Arc<Mutex<I2CInner>>);
 
 #[napi]
 pub struct Capabilities(rppal::i2c::Capabilities);
@@ -29,12 +30,12 @@ impl I2C {
     }
     .map({
       |i2c| {
-        Self(Mutex::new(I2CInner {
-          i2c: i2c,
+        Self(Arc::new(Mutex::new(I2CInner {
+          i2c,
           slave_address: None,
           is_10bit_address: false,
           timeout: None,
-        }))
+        })))
       }
     })
     .map_err(|e| {
@@ -152,31 +153,31 @@ impl I2C {
       ));
     };
 
-    let mut buffer = vec![0; buffer_size];
+    let i2c_ref = self.0.clone();
+    tokio::task::spawn_blocking(move || {
+      let mut inner = tokio::runtime::Handle::current().block_on(i2c_ref.lock());
 
-    todo!()
-    // self.i2c.read(&mut buffer).await.map_err(|e| {
-    //   Error::new(
-    //     Status::GenericFailure,
-    //     format!("Failed to read from I2C: {}", e),
-    //   )
-    // })?;
+      let mut buffer = vec![0u8; buffer_size];
 
-    // Ok(buffer)
+      match inner.i2c.read(&mut buffer) {
+        Ok(bytes_read) => {
+          buffer.truncate(bytes_read);
+          Ok(buffer)
+        }
+        Err(e) => Err(Error::new(
+          Status::GenericFailure,
+          format!("Failed to read from I2C: {}", e),
+        )),
+      }
+    })
+    .await
+    .map_err(|e| {
+      Error::new(
+        Status::GenericFailure,
+        format!("Failed to await read task: {}", e),
+      )
+    })?
   }
-
-  // #[napi(setter, js_name = "is10BitAddress")]
-  // pub fn set_is_10bit_address(&mut self, is_10bit_address: bool) -> Result<()> {
-  //   self.is_10bit_address = is_10bit_address;
-  //   self.i2c.set_10bit_address(is_10bit_address);
-  // }
-
-  // #[napi]
-  // pub async fn read(&self, address: u8, len: usize) -> Result<Vec<u8>> {
-  //   let mut buf = vec![0; len];
-  //   self.0.read(address, &mut buf).await?;
-  //   Ok(buf)
-  // }
 }
 
 #[napi]
