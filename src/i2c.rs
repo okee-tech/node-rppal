@@ -6,8 +6,7 @@ use std::time::Duration;
 use tokio;
 use tokio::sync::Mutex;
 
-#[napi]
-pub struct I2CInner {
+struct I2CInner {
   i2c: rppal::i2c::I2c,
   is_10bit_address: bool,
   timeout: Option<Duration>,
